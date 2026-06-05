@@ -2,6 +2,9 @@
   "name": "roborev-docs",
   "type": "module",
   "version": "0.0.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "prebuild": "mkdir -p public && curl -fsSL https://raw.githubusercontent.com/kenn-io/roborev/main/scripts/install.sh -o public/install.sh",
     "dev": "astro dev",
@@ -11,8 +14,8 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.32.0",
-    "astro": "^5.1.0",
+    "@astrojs/starlight": "^0.39.3",
+    "astro": "^6.4.4",
     "sharp": "^0.33.0"
   }
 }

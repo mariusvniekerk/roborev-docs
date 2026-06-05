@@ -35,10 +35,10 @@ export default defineConfig({
           },
         },
       },
-      social: {
-        github: 'https://github.com/kenn-io/roborev',
-        discord: 'https://discord.gg/fDnmxB8Wkq',
-      },
+      social: [
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/kenn-io/roborev' },
+        { icon: 'discord', label: 'Discord', href: 'https://discord.gg/fDnmxB8Wkq' },
+      ],
       head: [
         // Open Graph / Social preview
         {
