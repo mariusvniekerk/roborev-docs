@@ -29,8 +29,8 @@ Note: use `--branch=name` (with `=`), not `--branch name`. The space-separated f
 ### How It Works
 
 1. roborev detects the merge-base between the target branch and the base branch
-2. All commits from the merge-base to the branch tip are queued for review
-3. Each commit is reviewed individually by the AI agent
+2. The merge-base to branch tip range is queued as one review target
+3. The AI agent reviews the branch range with per-commit context
 4. Results are stored and can be viewed in the TUI
 
 ### Pre-Merge Review
@@ -47,6 +47,22 @@ roborev fix                      # Address consolidated findings
 
 The TUI gives you a persistent queue of open reviews that must be explicitly addressed and closed, creating an accountability loop that prevents findings from getting lost.
 
+### Panel Reviews
+
+For high-value branch reviews, run a named panel so multiple reviewers check the same range and roborev synthesizes one parent review:
+
+```bash
+roborev review --branch --panel branch_final
+```
+
+If your config sets `[review] default_panel`, manual daemon reviews use it automatically. Use `--panel none` to force a normal single-agent review:
+
+```bash
+roborev review --branch --panel none
+```
+
+See [Subagent Review Panels](/advanced/subagent-review-panels/) for panel configuration.
+
 ### CI Integration
 
 ```bash
@@ -62,11 +78,12 @@ fi
 |------|-------------|
 | `--branch [name]` | Review all commits on the branch since base. Optionally specify a branch name with `--branch=name`. |
 | `--base <branch>` | Compare against a specific base branch (default: auto-detect main/master) |
-| `--wait` | Block until all reviews complete (for CI and scripting; see [When to use `--wait`](#when-to-use---wait)) |
+| `--wait` | Block until the review or panel parent completes (for CI and scripting; see [When to use `--wait`](#when-to-use---wait)) |
 | `--quiet` | Suppress output |
 | `--agent <name>` | Use specific agent |
 | `--reasoning <level>` | Set reasoning depth |
 | `--min-severity <level>` | Only report findings at or above this severity (`low`/`medium`/`high`/`critical`) |
+| `--panel <name or none>` | Run a named review panel, or use `none` to force single-agent review |
 
 ## Uncommitted Changes
 
@@ -95,6 +112,7 @@ The `--dirty` flag includes:
 | `--agent <name>` | Use specific agent |
 | `--reasoning <level>` | Set reasoning depth |
 | `--min-severity <level>` | Only report findings at or above this severity (`low`/`medium`/`high`/`critical`) |
+| `--panel <name or none>` | Run a named review panel, or use `none` to force single-agent review |
 
 ## Review Types
 

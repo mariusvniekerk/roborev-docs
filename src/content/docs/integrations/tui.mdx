@@ -33,6 +33,9 @@ When set via flags, the filter is locked and cannot be changed in the TUI. This 
 | `Up`/`k`, `Down`/`j` | Navigate jobs |
 | `PgUp`, `PgDn` | Page through list |
 | `Enter` | View review |
+| `Space` | Expand or collapse a panel run |
+| `Right` | Expand a panel run |
+| `Left` | Collapse a panel run |
 | `l` | View job log |
 | `p` | View prompt |
 | `m` | View commit message |
@@ -54,6 +57,8 @@ When set via flags, the filter is locked and cannot be changed in the TUI. This 
 | `Ctrl-D` | Quit |
 | `q` | Quit |
 
+Panel reviews appear as one synthesis parent row by default. The parent row shows live progress while member reviewers run and a compact member summary after completion. Expand the row to inspect individual member jobs. Close, cancel, rerun, or fix the panel from the parent row, not from a member row.
+
 ## Log View
 
 Press `l` from the queue view, review view, or prompt view to open the log viewer. For running jobs, the view streams live output as it arrives. Logs are persisted to disk, so they remain available after the job completes and across daemon restarts.
@@ -66,6 +71,7 @@ Press `l` from the queue view, review view, or prompt view to open the log viewe
 | `End` | Jump to bottom (enables follow mode) |
 | `g` | Toggle between top and bottom |
 | `Left`, `Right` | Previous/next job log |
+| `i` | Expand or collapse the full command line |
 | `x` | Cancel running job |
 | `?` | Show all commands |
 | `Esc`, `q` | Back to previous view |
@@ -121,6 +127,8 @@ The queue displays two separate status columns:
 
 The default-visible "Cost" column shows the model-pricing estimate from [agentsview](/commands/#token-usage) for completed jobs. The cell stays blank for unpriced models, for jobs whose usage has not been fetched yet, and on agentsview versions older than 0.30.0.
 
+For panel parent rows, the cost column sums member costs plus synthesis cost after the panel run is complete.
+
 ## Mouse Interactions
 
 Mouse support is enabled by default. Click to select rows, double-click to open a review, and use the scroll wheel to navigate lists.
@@ -169,11 +177,12 @@ Press `p` from the queue view or review view to see the prompt that was sent to 
 | `Up`/`k`, `Down`/`j` | Scroll content |
 | `Left`/`h`, `Right`/`l` | Previous/next prompt |
 | `PgUp`, `PgDn` | Page through content |
+| `i` | Expand or collapse the full command line |
 | `p` | Switch between prompt/review |
 | `?` | Show all commands |
 | `Esc`, `q` | Back to queue |
 
-The prompt header shows the job ID, git ref, and agent. Below the header, the command line used to run the agent is displayed (truncated to terminal width if needed).
+The prompt header shows the job ID, git ref, and agent. Below the header, the command line used to run the agent is displayed. It is truncated to terminal width by default; press `i` to wrap and inspect the full command line. The log view uses the same toggle.
 
 ## Copying Reviews
 
@@ -205,7 +214,7 @@ Press `?` at any time to toggle the commands overlay. This displays all availabl
 The review detail view shows:
 
 ```
-Review #42 myrepo (codex: claude-sonnet-4-5-20250929)
+Review #42 myrepo (codex: gpt-5.5)
 /path/to/repo abc1234 on feature-branch
 Verdict: Pass [CLOSED]
 ```
@@ -225,7 +234,7 @@ Reviews display a **Verdict** (Pass/Fail) parsed from the AI response:
 
 Reviews and prompts are rendered with full Markdown formatting directly in the terminal. Code blocks display with syntax highlighting, and headings, lists, bold, italic, and inline code all render with appropriate styling.
 
-Code blocks are displayed without word-wrapping — long lines are truncated to the terminal width so diffs and code snippets stay readable. Prose text outside code blocks is word-wrapped naturally.
+Code blocks are displayed without word-wrapping. Long lines are truncated to the terminal width so diffs and code snippets stay readable. Prose text outside code blocks is word-wrapped naturally.
 
 ### Tab Width
 

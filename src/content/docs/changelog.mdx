@@ -5,6 +5,47 @@ description: Release history for roborev
 
 All notable changes to roborev, grouped by minor release.
 
+## 0.57
+<small>Unreleased</small>
+
+**New features**
+
+- Agent hook integration. The new `roborev agent-hook` command plugs into Codex and Claude Code harness hooks and prompts the agent to run `$roborev-fix` once review work piles up, so reviews get fixed inside the agent session. See [Agent Hook](/agent-hook/).
+- Subagent review panels for CI and manual daemon reviews. A panel fans one review target out to named reviewer specs, then produces one synthesis parent review that is the actionable row for `show`, `list`, `wait`, fix workflows, and the TUI. CI now uses the same panel system; existing `agents`, `review_types`, and `[ci.reviews]` configs become an implicit panel when `[ci] panel` is not set. See [Subagent Review Panels](/advanced/subagent-review-panels/) and [Named CI Panels](/integrations/github/#named-ci-panels).
+- Safer CI review retries. The CI poller now tracks retry state per PR HEAD, defers transient provider outages without posting misleading comments, retries genuine member failures up to a bounded cap, and rechecks PR open state, HEAD SHA, and repo identity before retrying or posting. See [Safe CI Retries](/integrations/github/#safe-ci-retries).
+- Anonymous daemon telemetry. roborev sends limited anonymous daemon lifecycle telemetry on startup and once every 24 hours while running, with repo and review counts plus high-level feature flags. It does not send repo names, paths, remotes, prompts, review output, provider tokens, usernames, or IP geolocation. Disable with `ROBOREV_TELEMETRY_ENABLED=0` or `TELEMETRY_ENABLED=0`. See [Telemetry](/configuration/#telemetry).
+- DEB and RPM release artifacts. Linux releases now include `.deb` and `.rpm` packages for `amd64` and `arm64`, including user-level systemd units. See [Linux Packages](/installation/#linux-packages-deb-and-rpm).
+
+**Improvements**
+
+- TUI review and queue panel refinements, plus a new `i` toggle in log and prompt views that expands or collapses the full command line used for a job. See [Terminal UI](/integrations/tui/#log-view).
+- `compact` now requires the consolidated review to repeat each remaining finding with actionable detail (severity, file/line, description). Outputs that report findings only as counts or summaries are rejected instead of stored, so a compacted review cannot claim findings it never lists. Clean verifications are unaffected. See [Consolidating Reviews](/commands/#consolidating-reviews).
+- Cost lookup can be routed through a configurable HTTP usage endpoint instead of the local `agentsview` CLI. See [Cost Usage Endpoint](/configuration/#cost-usage-endpoint).
+- Update discovery now uses GitHub's HTML redirect endpoint for latest release checks, avoiding GitHub API rate limits.
+- Raised the default CI `batch_timeout` from 3 minutes to 15 minutes. Set `batch_timeout = "0"` to disable. See [CI Options Reference](/integrations/github/#ci-options-reference).
+- Improved dependency metadata filtering to reduce false-positive findings.
+- Default review prompts now put `No issues found.` on its own line for cleaner pass output.
+- Improved classifier support, including Pi schema-based classifier output through the configured JSON schema extension. See [Pi Classifier Options](/configuration/#pi-classifier-options).
+
+**Bug fixes**
+
+- Fixed CI reviews using stale checkouts.
+- Fixed worktrees finding `.roborev.toml` when it is gitignored in the main repo.
+- Fixed review retry log handling and retained classifier job logs.
+- Fixed Claude classifier structured output parsing.
+- Fixed hook binary resolution for managed installs.
+- Fixed the OpenCode install source. See [Supported Agents](/agents/#supported-agents).
+- Fixed Copilot streaming behavior when the agent supports disabling streaming.
+- Grounded reviewer version checks in the project toolchain.
+
+**Acknowledgements**
+
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for anonymous daemon telemetry, kit daemon lifecycle and git helper adoption, hook binary resolution fixes, Pi classifier schema support, Copilot streaming handling, and the OpenCode install source fix.
+- Thanks to [Phillip Cloud](https://github.com/cpcloud) for Nix vendorHash handling on Dependabot PRs, safer review retry logging, classifier log retention, configurable cost lookup, CI poller test isolation, Claude classifier parsing fixes, the daemon repo resolve endpoint, shared self-update integration, DEB and RPM artifacts, the TUI full-command-line toggle, and reviewer version checks grounded in the project toolchain.
+- Thanks to [Chris K Wensel](https://github.com/cwensel) for falling back to the main repo when `.roborev.toml` is gitignored in a worktree.
+
+---
+
 ## 0.56
 <small>2026-05-24</small>
 
@@ -27,6 +68,12 @@ All notable changes to roborev, grouped by minor release.
 - The CI batch poller no longer unclaims batches that were finalized by a racing event path. Stale-claim recovery now checks the batch's terminal state before reverting it. Permanent GitHub access errors on moved or deleted repositories finalize the batch instead of retrying forever.
 - `roborev init` works in worktrees backed by `git clone --bare`. The git helper now detects linked worktrees whose common git directory is bare and resolves them to the checkout root, so Middleman-style bare-backed worktrees can be registered. Behavior for normal linked worktrees and submodule worktrees is unchanged.
 
+**Acknowledgements**
+
+- Thanks to [Lev Konstantinovskiy](https://github.com/tmylk) for adding the internal-contradictions check to the design review prompt.
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for preferring Antigravity for Gemini, supporting bare-backed worktrees, adding agent plugin manifests, writing oversized-diff snapshots under repo-local storage, and fixing Codex resume arguments.
+- Thanks to [Phillip Cloud](https://github.com/cpcloud) for daemon retry backoff via `retry_not_before`, enabling `errorlint`, and improving CLI usage/error output behavior.
+
 ---
 
 ## 0.55
@@ -46,6 +93,11 @@ All notable changes to roborev, grouped by minor release.
 **Bug fixes**
 
 - Gemini-based reviews can now read external diff snapshots. The Gemini agent receives the per-snapshot temp directory in its allowed-paths list (matching the Codex `--add-dir` behavior introduced in 0.54), restoring access to the expected context for large diffs.
+
+**Acknowledgements**
+
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for disabling Codex review skill context by default, adding security analyze mode, and exposing the daemon endpoint in JSON status output.
+- Thanks to [Phillip Cloud](https://github.com/cpcloud) for allowing review agents to read repo files when verifying diffs, exposing Gemini diff snapshot directories, and hiding auto-design-router noise from the queue by default.
 
 ---
 
@@ -68,6 +120,10 @@ All notable changes to roborev, grouped by minor release.
 - The foreground `roborev fix` loop now classifies agent errors and aborts cleanly when it detects a quota or session limit, instead of demoting these failures to per-job warnings during discovery mode. A new `internal/agent` rate-limit classifier (`LimitKind`, `LimitClassification`, `ParseResetDuration`, `ParseResetTime`) is shared between the daemon worker and the CLI fix loop, so cooldown behavior is consistent across both paths and unmatched agent errors are logged with a truncated preview instead of being silent.
 - Codex large-diff snapshots are written to per-snapshot subdirectories, and Codex receives the snapshot directory via `--add-dir` instead of full `/tmp` access. This restores Codex's ability to read external diff snapshots while avoiding exposure of unrelated `/tmp` contents. Snapshot-shaped paths in prompts are ignored unless they resolve to existing files inside a private roborev snapshot directory.
 
+**Acknowledgements**
+
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for exposing Codex diff snapshot directories and keeping large diff prompts external.
+
 ---
 
 ## 0.53.1
@@ -83,6 +139,10 @@ All notable changes to roborev, grouped by minor release.
 
 - `review --branch`, `analyze --branch`, and `refine` correctly auto-detect the branch base when the upstream is configured as a raw URL (e.g. `https://example.com/fork.git`) rather than a registered remote name. URL-shaped values previously produced invalid refs like `refs/remotes/https://.../main` that failed to resolve, breaking branch-base detection for affected repos. roborev now detects URL-shaped remote values via prefix and `://` checks, after first confirming the value is not a registered remote name, and falls through to the next detection step.
 - Per-branch `branch.<name>.base` overrides are now consulted by review, refine, and analyze flows. The override was already documented as a per-branch base override but was being skipped in favor of upstream-tracking detection.
+
+**Acknowledgements**
+
+- Thanks to [Veit Sanner](https://github.com/VeitSanner) for improving ACP session validation and model resolution.
 
 ---
 
@@ -107,6 +167,11 @@ All notable changes to roborev, grouped by minor release.
 - `review --branch`, `analyze --branch`, `refine`, and the post-commit branch-review path now resolve the merge-base against the current branch's `@{upstream}` (e.g. `upstream/main` in fork workflows), falling back to the configured default branch only when no upstream is set. The previous behavior pulled in commits already merged upstream when the local `origin/main` was behind. The `currentBranch == LocalBranchName(base)` guardrail is replaced by `git.IsOnBaseBranch`, which generalizes the `origin/` shortcut, handles non-origin remotes, and stops misclassifying local branches whose names contain slashes (e.g. `feature/foo`).
 - Tab-completing `roborev review --type <TAB>` no longer falls through to filename completion when no value has been typed yet. The completion now returns just `security` and `design` and disables filename fallback.
 - Claude Code's durable scheduled-task files (`.claude/scheduled_tasks.json`, `.claude/scheduled_tasks.lock`) are added to `.gitignore` so the harness's local cron state does not get accidentally tracked.
+
+**Acknowledgements**
+
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for fixing detached-HEAD review discovery, migrating the daemon API to Huma, and completing review type flag support.
+- Thanks to [Phillip Cloud](https://github.com/cpcloud) for ignoring Claude Code scheduled task files, adding the automatic design-review router, and fixing branch upstream resolution for branch reviews.
 
 ---
 
@@ -133,6 +198,14 @@ All notable changes to roborev, grouped by minor release.
 Breaking change: when the `claude-code` agent runs, roborev now strips inherited `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL`, and `CLAUDE_CODE_SUBAGENT_MODEL` from the child environment. If you were routing Claude Code by exporting these variables in your shell, switch to the `<model>@<base_url>` spec or configure `anthropic_api_key` in `~/.roborev/config.toml`.
 :::
 
+**Acknowledgements**
+
+- Thanks to [Luis Gonzalez](https://github.com/lgonzalezsa) for clipboard support over SSH with OSC52.
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for hardening review prompts and refactoring prompt construction around shared templates and golden snapshots.
+- Thanks to [graycoldknight](https://github.com/graycoldknight) for allowing internal whitespace in Gemini severity threshold markers.
+- Thanks to [Chris K Wensel](https://github.com/cwensel) for routing Claude Code through a proxy with the `<model>@<base_url>` model spec.
+- Thanks to [Phillip Cloud](https://github.com/cpcloud) for stream formatting cleanup and improved OpenCode tool-call output.
+
 ---
 
 ## 0.51
@@ -158,6 +231,13 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - CI repo matching resolves ambiguous repositories (multiple repos sharing the same git identity) by preferring auto-cloned repos instead of failing.
 - GitHub Actions release checksums use the expected `SHA256SUMS` filename.
 
+**Acknowledgements**
+
+- Thanks to [Phillip Cloud](https://github.com/cpcloud) for min-severity cascading, review-level filtering, config/worktree/CI reasoning fixes, and global reasoning default handling.
+- Thanks to [Stephan Hoyer](https://github.com/shoyer) for including per-commit reviews in branch review prompts and adding user comments and tool attempts to fix prompts.
+- Thanks to [Ben Sedat](https://github.com/bsedat) for switching GitHub Action artifacts to `SHA256SUMS`.
+- Thanks to [Axon](https://github.com/axonstone) for resolving ambiguous repository matches in CI.
+
 ---
 
 ## 0.50
@@ -179,6 +259,13 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 
 - Preserve the requested model when rerunning reviews. Previously, rerunning a review could resolve a different model from config defaults instead of preserving the model specified in the original request. A separate `requested_model` field now tracks explicit user intent.
 - Enforce a `batch_timeout` (default: 3 minutes) on CI PR comment batches to prevent indefinite hangs when some jobs in a multi-agent batch get stuck. When the timeout expires, available results are posted and remaining jobs are canceled. See [CI Options Reference](/integrations/github/#ci-options-reference).
+
+**Acknowledgements**
+
+- Thanks to [Aaron Jacobs](https://github.com/atheriel) for downstream systemd unit files, `$XDG_RUNTIME_DIR` daemon socket handling, and systemd socket activation support.
+- Thanks to [Stephan Hoyer](https://github.com/shoyer) for adding the iterative `roborev-refine` skill.
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for adding human PR discussion to review prompts, preserving TUI selections and model provenance, and refactoring shared daemon polling, workflow resolution, clone, runtime argument, repo-root, HTTP loader, and config precedence helpers.
+- Thanks to [Phillip Cloud](https://github.com/cpcloud) for preventing stale TUI status/fix-job updates, adding `auto_close_passing_reviews`, and subscribing the TUI to the daemon event stream.
 
 ---
 
@@ -204,6 +291,14 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - Reviews and hooks for commits made in git worktrees now run in the correct worktree directory. A `worktree_path` field is persisted per job so agents and hooks operate on the right branch.
 - Copilot reviews no longer fail with permission denials in non-interactive (daemon) mode. The agent now uses `--allow-all-tools` with a deny-list for destructive operations in review mode.
 
+**Acknowledgements**
+
+- Thanks to [Sergey Trofimovsky](https://github.com/strofimovsky) for fixing `NO_COLOR` on TUI detail screens and adding `ROBOREV_COLOR_MODE`.
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for making insights a daemon-owned job type, refactoring the shared multi-agent catalog and ACP/CLI runner flows, adopting `prek` for lint hooks, and cleaning up storage, verdict parsing, testenv, stream formatting, update, test helper, and version build-info internals.
+- Thanks to [Ryan Mahoney](https://github.com/ryan-mahoney) for fixing review-agent and hook working directories for worktree commits.
+- Thanks to [Thomas Maloney](https://github.com/tlmaloney) for fixing refine branch reviews that used the wrong agent.
+- Thanks to [Phillip Cloud](https://github.com/cpcloud) for adding Unix domain socket daemon transport.
+
 ---
 
 ## 0.48
@@ -220,6 +315,11 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 
 - Avoid `.git/index.lock` contention during reviews by setting `GIT_OPTIONAL_LOCKS=0` in agent subprocess environments, reducing conflicts with concurrent git operations.
 - Fix `--all-branches` and `--branch` filtering when running `roborev fix` from a git worktree. The branch override was not being threaded through to `filterReachableJobs`, causing it to filter by the worktree's branch instead of the requested branch.
+
+**Acknowledgements**
+
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for refactoring worktree helper flows.
+- Thanks to [Phillip Cloud](https://github.com/cpcloud) for skipping update notifications on dev builds and speeding up the test suite.
 
 ---
 
@@ -249,6 +349,12 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - Fix `GetCurrentBranch` returning a `heads/`-prefixed branch name when git refs are ambiguous.
 - Update Gemini defaults and fall back cleanly when the configured model is unavailable.
 
+**Acknowledgements**
+
+- Thanks to [Phillip Cloud](https://github.com/cpcloud) for isolating tests from global git config, fixing a session-stream test agent leak, adding the TUI elapsed-time tick, and ignoring `.claude/worktrees`.
+- Thanks to [Sergey Trofimovsky](https://github.com/strofimovsky) for adding the `opencode_cmd` executable override.
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for issue 478 refactors, maximum Codex reasoning support, TUI session-id and column-option improvements, and Copilot-compatible skill names.
+
 ---
 
 ## 0.46
@@ -265,6 +371,10 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - Fix `roborev fix --open`, `--list`, and `--batch` discovering reviews from other worktrees. Jobs are now filtered to only those reachable from the current worktree's HEAD or matching its branch name.
 - Fix the post-commit hook not firing in linked git worktrees when `core.hooksPath` is set to a relative path. Relative paths are now resolved against the main repository root instead of the worktree root. `init`, `install-hook`, and `uninstall-hook` also normalize the hooks path and fail early if it cannot be resolved.
 - Add JSONL post-commit hook logging to `~/.roborev/post-commit.log` so that silent hook failures leave an audit trail with timestamps, repo paths, and failure reasons. See [Troubleshooting](/guides/troubleshooting/#post-commit-hook-log).
+
+**Acknowledgements**
+
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for fixing post-commit hooks in git worktrees and migrating tests to testify.
 
 ---
 
@@ -292,6 +402,10 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - Job log files are no longer permanently lost when the initial file open fails under resource pressure. The new log writer retries and buffers output until disk logging recovers.
 - Timed-out review jobs now unwind reliably instead of appearing to run past the configured `job_timeout`. Timeout errors are recorded as `agent timeout after <duration>` for clearer reporting in the TUI and hooks.
 
+**Acknowledgements**
+
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for documenting auto-written TOML config files and safely reusing review sessions on the current branch.
+
 ---
 
 ## 0.44
@@ -317,6 +431,11 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - Fix Enter key handling in the TUI inside embedded terminals.
 - Fix cases where the TUI fails to close cleanly.
 
+**Acknowledgements**
+
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for the mouse-disable config flag, webhook review hook support, and job session ID capture.
+- Thanks to [Darren Haas](https://github.com/darrenhaas) for adding the post-commit command and branch review hook configuration.
+
 ---
 
 ## 0.43
@@ -336,6 +455,10 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 
 - Agent resolution for `review`, `analyze`, `fix`, and `refine` commands now selects the intended agent more reliably.
 - CLI `--agent` overrides no longer inherit the wrong `default_model` from configuration.
+
+**Acknowledgements**
+
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for Ctrl-D TUI quit handling and gating the advanced TUI tasks workflow behind configuration.
 
 ---
 
@@ -357,6 +480,12 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 **Bug fixes**
 
 - Improve Claude review failure reporting so agent errors are captured and surfaced correctly.
+
+**Acknowledgements**
+
+- Thanks to [Miki Tebeka](https://github.com/tebeka) for saving patch files from the TUI.
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for adding Pi coding agent support.
+- Thanks to [Darren Haas](https://github.com/darrenhaas) for multi-repo workspace support.
 
 ---
 
@@ -392,6 +521,12 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - Fixed UTF-8 truncation when composing PR comments.
 - Fixed command/footer parsing by trimming trailing blank lines and enforcing `--` separators.
 
+**Acknowledgements**
+
+- Thanks to [Danny Steenman](https://github.com/dannysteenman) for configurable PR comment upserts and UTF-8 truncation fixes.
+- Thanks to [Veit Sanner](https://github.com/VeitSanner) for Agent Client Protocol support.
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for TUI mouse copy/paste support, log stderr word wrapping, and spacing polish.
+
 ---
 
 ## 0.39
@@ -405,6 +540,10 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 **Bug fixes**
 
 - Custom fix instructions now include full review context during fix generation.
+
+**Acknowledgements**
+
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for compact mode on short terminals, the distraction-free toggle, and review context for custom fix instructions.
 
 ---
 
@@ -426,6 +565,10 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - Use `ANTHROPIC_API_KEY` for the OpenCode agent in GitHub Actions workflows.
 - `roborev fix` skips reviews that already have a `PASS` verdict.
 
+**Acknowledgements**
+
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for multiple job IDs in `roborev wait`, mouse improvements for TUI tasks, and Kilo agent support.
+
 ---
 
 ## 0.37
@@ -439,6 +582,11 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 **Bug fixes**
 
 - Show the correct `roborev` version when installed via `go install`.
+
+**Acknowledgements**
+
+- Thanks to [Miki Tebeka](https://github.com/tebeka) for reporting the correct version when roborev is installed with `go install`.
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for restyling the TUI help bar with aligned two-tone keys.
 
 ---
 
@@ -463,6 +611,11 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - Patch application in git worktrees resolves the correct worktree path via `git worktree list`, fixing failures when the branch is checked out in a non-default worktree location.
 - Temporary command execution uses explicit file sync and retry with exponential backoff to prevent intermittent `text file busy` (ETXTBSY) races on Linux.
 
+**Acknowledgements**
+
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for TUI repo/branch flags, help bar alignment, temp-command race fixes, shell completions, worktree patch-path handling, and the inline fix panel.
+- Thanks to [Danny Steenman](https://github.com/dannysteenman) for CI repo wildcard patterns and exclusion lists.
+
 ---
 
 ## 0.35
@@ -482,6 +635,10 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 **Bug fixes**
 
 - Handle empty Git refs when fixing compact review jobs to prevent fix-flow failures. The server resolves a usable ref from the parent job's branch or falls back to HEAD, and the TUI shows a confirmation modal when no ref is available.
+
+**Acknowledgements**
+
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for analyze command shell completions and compact-review fix handling for empty git refs.
 
 ---
 
@@ -508,6 +665,12 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - Missing git origin remote treated as confirmed mismatch for auto-clone instead of a transient error.
 - Fixed a data race between `WorkerPool.Start` and `WorkerPool.Stop`.
 
+**Acknowledgements**
+
+- Thanks to [Hugh Brown](https://github.com/hughdbrown) for storing verdicts for later use.
+- Thanks to [Alejandro Saucedo](https://github.com/axsaucedo) for adding `roborev ci review` and the `init gh-action` workflow generator.
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for TUI-triggered fixes through background worktrees.
+
 ---
 
 ## 0.33
@@ -530,6 +693,11 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 
 - Post-rewrite hook preserves review history across rebases by remapping commit SHAs when patch content is unchanged.
 - Skip hook upgrade checks in CI mode to avoid CI interruptions.
+
+**Acknowledgements**
+
+- Thanks to [Nick Strayer](https://github.com/nstrayer) for backup agent failover for review jobs.
+- Thanks to [Hugh Brown](https://github.com/hughdbrown) for the `compact` command for verifying and consolidating reviews.
 
 ---
 
@@ -554,6 +722,11 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - Fixed refine loops so git hook failures no longer break execution.
 - Stripped `CLAUDECODE` when spawning the `claude-code` agent to prevent environment leakage.
 
+**Acknowledgements**
+
+- Thanks to [Jeremy Jordan](https://github.com/jeremyjordan) for adding `roborev wait`.
+- Thanks to [Nick Strayer](https://github.com/nstrayer) for the unified tree filter with lazy branch loading, search, and cwd prioritization.
+
 ---
 
 ## 0.31
@@ -567,6 +740,11 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 **Improvements**
 
 - Refreshed built-in Claude and Codex skill guides for review/refine/respond/fix workflows.
+
+**Acknowledgements**
+
+- Thanks to [Hugh Brown](https://github.com/hughdbrown) for skill tuneups.
+- Thanks to [Marius van Niekerk](https://github.com/mariusvniekerk) for the `roborev config` get/set/list subcommand.
 
 ---
 
@@ -635,6 +813,11 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 
 - Fixed review-type consistency so selected modes are applied reliably across commands.
 
+**Acknowledgements**
+
+- Thanks to [Benn Stancil](https://github.com/bstancil) for the TUI jump-to-top shortcut.
+- Thanks to [Hugh Brown](https://github.com/hughdbrown) for the `--type` flag for design and security review types.
+
 ---
 
 ## 0.26
@@ -652,6 +835,10 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - Expanded configuration to support CI polling and GitHub App settings.
 - Default Gemini model set so Gemini works without explicit model configuration.
 - Hardened agent integrations for improved reliability.
+
+**Acknowledgements**
+
+- Thanks to [Aseem Bansal](https://github.com/anshbansal) for `hide_addressed_by_default`, the Gemini default model, and agent/test hardening.
 
 ---
 
@@ -687,6 +874,10 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 
 - Prevented wrong agent selection and duplicate reviews from the post-commit hook.
 
+**Acknowledgements**
+
+- Thanks to [Hugh Brown](https://github.com/hughdbrown) for the fix-list fixes-available feature and adding `bin/` to `.gitignore`.
+
 ---
 
 ## 0.23
@@ -705,6 +896,10 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 **Bug fixes**
 
 - Fixed post-commit hook backgrounding to avoid blocking or hangups.
+
+**Acknowledgements**
+
+- Thanks to [John Zila](https://github.com/jzila) for the `{findings}` hook command template variable.
 
 ---
 
@@ -856,6 +1051,10 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - Fixed multi-byte character handling in TUI text input.
 - Fixed Codex agent stdin handling on Windows.
 
+**Acknowledgements**
+
+- Thanks to [Arthur Gerigk](https://github.com/gerigk) for Factory Droid agent support.
+
 ---
 
 ## 0.14
@@ -925,6 +1124,10 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - Claude Code compatibility for `roborev refine`.
 - Expanded daemon API to support repo and prompt operations.
 
+**Acknowledgements**
+
+- Thanks to [Hussain Sultan](https://github.com/hussainsultan) for adding the Nix roborev app.
+
 ---
 
 ## 0.10
@@ -986,6 +1189,10 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - Fixed git worktrees being treated as separate repositories.
 - Fixed false positive "failed" reviews.
 
+**Acknowledgements**
+
+- Thanks to [John Zila](https://github.com/jzila) for JSONL event streaming, git worktree repository detection fixes, and the Nix flake.
+
 ---
 
 ## 0.6
@@ -1025,6 +1232,10 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - TUI views fit terminal width dynamically.
 - More robust executable path handling for hooks.
 
+**Acknowledgements**
+
+- Thanks to [Andy Hadjigeorgiou](https://github.com/andyxhadji) for configurable job timeouts and responsive TUI widths.
+
 ---
 
 ## 0.4
@@ -1047,6 +1258,10 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 
 - Fixed version comparison for dev builds.
 - Fixed Windows path detection for hook locations.
+
+**Acknowledgements**
+
+- Thanks to [Tenzin Wangdhen](https://github.com/sinzin91) for Husky git hook manager support and automatic `.git/hooks` directory creation.
 
 ---
 
@@ -1092,6 +1307,10 @@ Breaking change: when the `claude-code` agent runs, roborev now strips inherited
 - Fixed daemon stop behavior and restart reliability.
 - Fixed SQLite datetime parsing for TUI timestamps.
 - Fixed retry job atomicity.
+
+**Acknowledgements**
+
+- Thanks to [Jonathan](https://github.com/etothexipi) for OpenCode agent support.
 
 ---
 

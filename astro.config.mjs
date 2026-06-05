@@ -122,6 +122,7 @@ export default defineConfig({
           label: 'Advanced Features',
           items: [
             { label: 'Background Tasks', slug: 'advanced/background-tasks' },
+            { label: 'Subagent Review Panels', slug: 'advanced/subagent-review-panels' },
             { label: 'Custom Tasks & Agentic Mode', slug: 'advanced/custom-tasks' },
             { label: 'Agent Client Protocol (ACP)', slug: 'advanced/acp' },
             { label: 'PostgreSQL Sync', slug: 'advanced/postgres-sync' },
@@ -135,6 +136,7 @@ export default defineConfig({
           ],
         },
         { label: 'Review Hooks', slug: 'guides/hooks' },
+        { label: 'Agent Hook', slug: 'agent-hook' },
         { label: 'Troubleshooting', slug: 'guides/troubleshooting' },
         { label: 'Development', slug: 'development' },
         { label: 'Changelog', slug: 'changelog' },

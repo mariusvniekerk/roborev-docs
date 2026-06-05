@@ -14,7 +14,7 @@ roborev supports multiple AI coding agents and auto-detects which ones are insta
 | Gemini | `agy` or `gemini` | `curl -fsSL https://antigravity.google/cli/install.sh \| bash` (preferred) or `npm install -g @google/gemini-cli` |
 | Copilot | `copilot` | `npm install -g @github/copilot` |
 | Cursor | `agent` | See [cursor.com/cli](https://cursor.com/cli) |
-| OpenCode | `opencode` | `npm install -g opencode-ai` |
+| OpenCode | `opencode` | `npm install -g opencode-ai@latest` ([anomalyco/opencode](https://github.com/anomalyco/opencode)) |
 | Droid | `droid` | See [factory.ai](https://factory.ai/) |
 | Kilo | `kilo` | `npm install -g @kilocode/cli` |
 | Kiro | `kiro-cli` | See [kiro.dev](https://kiro.dev/) |
@@ -28,11 +28,11 @@ roborev auto-detects installed agents and falls back in this order:
 2. Claude Code
 3. Gemini
 4. Copilot
-5. Cursor
-6. OpenCode
-7. Droid
+5. OpenCode
+6. Cursor
+7. Kiro
 8. Kilo
-9. Kiro
+9. Droid
 10. Pi
 
 The first available agent is used unless you specify one explicitly.
@@ -157,6 +157,19 @@ Antigravity does not currently accept a `--model` flag, so:
 - If only `agy` is installed, an explicit `--model` returns an error so the override is not silently ignored.
 
 If you rely on model selection and want to keep using `gemini` exclusively, install only the legacy CLI or shadow `agy` on your `PATH` with a wrapper that exec's `gemini`.
+
+## Pi Structured Output
+
+Pi can run normal review jobs and can also serve as the auto design-review classifier. roborev uses Pi's JSON schema output extension for classifier jobs. The default extension source is `npm:@nqbao/pi-json-schema@0.1.1`.
+
+Override the extension source in global config if you vendor or mirror it:
+
+```toml
+[agent.pi]
+jsonschemaextension = "/opt/roborev/pi-json-schema/index.ts"
+```
+
+See [Pi Classifier Options](/configuration/#pi-classifier-options).
 
 ## Agentic Support
 

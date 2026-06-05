@@ -47,6 +47,10 @@ roborev review --dirty           # Review working tree
 # Review types
 roborev review --type security   # Security-focused review
 roborev review --type design     # Design-focused review
+
+# Review panels
+roborev review --branch --panel branch_final  # Run a named review panel
+roborev review --branch --panel none          # Force single-agent review
 ```
 
 | Flag | Description |
@@ -55,12 +59,13 @@ roborev review --type design     # Design-focused review
 | `--quiet` | Only show progress/elapsed time |
 | `--branch [name]` | Review all commits on branch since base (optionally specify branch name) |
 | `--base <branch>` | Base branch for `--branch` comparison (default: auto-detect) |
-| `--agent <name>` | Use specific agent for review |
+| `--agent <name>` | Use a specific agent for review: a built-in (`codex`, `claude-code`, `gemini`, `copilot`, `opencode`, `cursor`, `kiro`, `kilo`, `droid`, `pi`) or a configured ACP agent |
 | `-m, --model <model>` | Model to use (format varies by agent) |
-| `--type <type>` | Review type (`security`, `design`) — changes system prompt |
+| `--type <type>` | Review type (`security`, `design`); changes system prompt |
 | `--reasoning <level>` | Set reasoning depth (`maximum`/`thorough`/`standard`/`fast`) |
 | `--fast` | Shorthand for `--reasoning fast` |
 | `--min-severity <level>` | Only report findings at or above this severity (`low`/`medium`/`high`/`critical`) |
+| `--panel <name or none>` | Run a named review panel. Use `none` to bypass configured defaults |
 | `--local` | Run review locally without the daemon (streams output to console) |
 | `--repo <path>` | Specify repository path |
 
@@ -111,6 +116,8 @@ roborev log <job_id>             # View job log
 | `--json` | Output as JSON for machine-readable workflows |
 
 `roborev show` displays review comments after the review output when comments exist, matching the layout in the TUI review detail view.
+
+For panel parent reviews, `roborev show` also displays a one-line reviewer summary. `roborev show --json` includes an additive `panel` object with the run UUID, panel name, synthesis job ID, and member reviewer statuses.
 
 See: [Terminal UI](/integrations/tui/)
 
@@ -251,6 +258,8 @@ roborev compact --reasoning thorough         # Use thorough reasoning level
 
 Compact discovers open completed reviews, sends them to an agent for verification against the current codebase, and consolidates related findings into a single review job. Original jobs are automatically closed when consolidation finishes. This adds a quality layer between `review` and `fix` to reduce false positives.
 
+If the verification reports that findings remain, `compact` requires each one to be repeated with actionable detail (severity, file/line, description). Outputs that mention remaining findings only as counts or summaries are rejected and the job fails, rather than producing a review that cannot be acted on. A clean verification with no remaining findings is still recorded as a review.
+
 :::note
 Avoid running multiple compact commands concurrently on the same branch. The operation is not atomic and concurrent runs can produce inconsistent state.
 :::
@@ -324,6 +333,8 @@ If no failing reviews match the time window and branch filter, the command exits
 Token usage is tracked automatically for completed jobs when `agentsview` is installed. Usage appears in the TUI review header and `roborev show` output (e.g. `118.0k ctx · 28.8k out`).
 
 When agentsview 0.30.0 or newer is installed, the usage summary also includes a model-pricing cost estimate (e.g. `118.0k ctx · 28.8k out · ~$0.42`), and the TUI queue displays a default-visible "Cost" column with the per-job estimate. Older agentsview versions still record token counts; the cost column stays blank for unpriced models and for jobs whose usage has not yet been fetched. The tilde marks the value as a model-pricing estimate rather than a billed amount.
+
+If you run a central usage service, configure `[cost] endpoint` to fetch usage over HTTP instead of through the local `agentsview` CLI. See [Cost Usage Endpoint](/configuration/#cost-usage-endpoint).
 
 To backfill token data for older jobs:
 
@@ -536,6 +547,26 @@ post_commit_review = "branch"
 When set to `"branch"`, each commit triggers a `merge-base..HEAD` range review. On the base branch itself, detached HEAD, or any error, it falls back to a single-commit review.
 
 See: [Configuration](/configuration/#post-commit-review-mode)
+
+## Agent Hook
+
+```bash
+roborev agent-hook install              # Install Codex + Claude hook entries
+roborev agent-hook install --agent codex --dry-run   # Preview one harness
+roborev agent-hook dump --agent claude  # Print hook config JSON (declarative setups)
+roborev agent-hook run                  # Read a hook payload from stdin (harness calls this)
+roborev agent-hook status               # Tracked session counters as JSON
+roborev agent-hook reset <session-id>   # Reset one session (or --all)
+roborev agent-hook daemon start         # start | status | stop | restart
+```
+
+| Flag | Description |
+|------|-------------|
+| `--agent <name>` | Target harness: `codex`, `claude`, or `all` (`all` for `install` only) |
+| `--dry-run` | Report whether each target needs changes without writing (`install`) |
+| `--command <cmd>` | Override the installed hook command (default: resolved roborev binary + `agent-hook run`) |
+
+`roborev agent-hook` is an opt-in Codex and Claude Code integration that prompts the agent to run `$roborev-fix` when review work piles up. See [Agent Hook](/agent-hook/).
 
 ## Checking Agents
 

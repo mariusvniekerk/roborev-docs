@@ -195,7 +195,7 @@ review_model_thorough = "claude-opus-4-5-20251101"
 refine_agent_fast = "gemini"
 refine_model_fast = "gemini-3-flash"
 refine_agent_thorough = "codex"
-refine_model_thorough = "gpt-5.2-codex"
+refine_model_thorough = "gpt-5.5"
 ```
 
 Base keys use the pattern `{workflow}_agent` and `{workflow}_model` (e.g. `review_model`, `refine_agent`, `fix_agent`, `security_agent`, `design_model`) to set the default for each workflow. Level-specific keys override for a given reasoning level:
@@ -205,6 +205,33 @@ Base keys use the pattern `{workflow}_agent` and `{workflow}_model` (e.g. `revie
 
 The fallback hierarchy for each workflow is:
 - **CLI flag** > **repo `{workflow}_agent_{level}`** > **repo `{workflow}_agent`** > **repo `agent`** > **global `{workflow}_agent_{level}`** > **global `{workflow}_agent`** > **global `default_agent`** > `codex`
+
+### Review Panels
+
+Use `[review]` to configure subagent review panels. A panel fans one daemon review target out to named reviewers and stores one synthesis parent review:
+
+```toml
+[review]
+default_panel = "branch_final"
+hook_review_panel = "quick"
+
+[review.subagents.bug]
+agent = "codex"
+review_type = "default"
+instructions = "Focus on correctness, regressions, and missing tests."
+
+[review.subagents.security]
+agent = "claude-code"
+review_type = "security"
+
+[review.panels.branch_final]
+members = ["bug", "security"]
+synthesis_agent = "codex"
+```
+
+`default_panel` applies to manual daemon reviews when `--panel` is not set. `hook_review_panel` applies to automatic post-commit reviews. CI reviews can select a named panel with `[ci] panel = "branch_final"`.
+
+Global and repo panel maps are merged by name, with repo entries overriding global entries. See [Subagent Review Panels](/advanced/subagent-review-panels/) for the full reference.
 
 ### Backup Agents
 
@@ -367,7 +394,7 @@ Create `~/.roborev/config.toml` to set system-wide defaults.
 
 ```toml
 default_agent = "codex"
-default_model = "gpt-5.2-codex"  # Default LLM
+default_model = "gpt-5.5"  # Default LLM
 default_backup_model = "claude-sonnet-4-20250514"  # Fallback model for backup agent
 server_addr = "127.0.0.1:7373"
 max_workers = 4
@@ -489,7 +516,7 @@ If you manage the daemon with systemd or launchd, use `roborev init --no-daemon`
 **macOS (launchd):**
 
 ```bash
-# Resolve paths — Homebrew prefix differs between Intel and Apple Silicon
+# Resolve paths. Homebrew prefix differs between Intel and Apple Silicon
 ROBOREV_BIN="$(command -v roborev)"
 BREW_PREFIX="$(brew --prefix 2>/dev/null || echo /usr/local)"
 
@@ -572,7 +599,22 @@ systemctl --user enable --now roborev
 |----------|-------------|
 | `ROBOREV_DATA_DIR` | Override default data directory (`~/.roborev`) |
 | `ROBOREV_COLOR_MODE` | Color theme: `auto` (default), `dark`, `light`, `none`. See [Color Mode](#color-mode) |
+| `ROBOREV_TELEMETRY_ENABLED` | Set to `0` to disable anonymous daemon telemetry |
+| `TELEMETRY_ENABLED` | Generic telemetry opt-out. Set to `0` to disable telemetry |
 | `NO_COLOR` | Set to any value to disable all color output ([no-color.org](https://no-color.org)) |
+
+### Telemetry
+
+roborev sends limited anonymous telemetry when the daemon starts and once every 24 hours while it remains running. Events are `daemon_started` and `daemon_active`, with repo count, review count, whether sync is enabled, whether CI is enabled, whether auto design review is enabled, roborev version, OS, architecture, and an anonymous install ID stored in the local database.
+
+Telemetry does not include repo names, paths, remotes, prompts, review output, provider tokens, usernames, or IP geolocation. Disable it with either environment variable:
+
+```bash
+ROBOREV_TELEMETRY_ENABLED=0 roborev daemon run
+TELEMETRY_ENABLED=0 roborev daemon run
+```
+
+Telemetry is disabled in Go test processes.
 
 ### Color Mode
 
@@ -597,14 +639,43 @@ The `default_model` setting specifies which model agents should use. The format 
 
 ```toml
 # OpenAI models (Codex, Copilot)
-default_model = "gpt-5.2"
+default_model = "gpt-5.5"
 
 # Anthropic models (Claude Code)
-default_model = "claude-sonnet-4-5-20250929"
+default_model = "claude-opus-4-8"
 
 # OpenCode (provider/model format)
-default_model = "anthropic/claude-sonnet-4-5-20250929"
+default_model = "anthropic/claude-opus-4-8"
 ```
+
+### Cost Usage Endpoint
+
+By default, roborev looks up token usage and cost estimates through the local `agentsview` CLI. You can route lookup through an HTTP endpoint instead:
+
+```toml
+[cost]
+endpoint = "https://usage.example.test/api/v1/sessions/{session_id}/usage"
+timeout = "2s"
+```
+
+`endpoint` must include `{session_id}`, which roborev URL-escapes and replaces with the agent session ID. If `endpoint` is empty, roborev uses the `agentsview` CLI path. `timeout` defaults to `10s`; invalid, zero, or negative values also fall back to `10s`.
+
+The endpoint should return JSON compatible with `agentsview session usage --format json`:
+
+```json
+{
+  "session_id": "session-123",
+  "agent": "codex",
+  "project": "myrepo",
+  "total_output_tokens": 28800,
+  "peak_context_tokens": 118000,
+  "has_token_data": true,
+  "cost_usd": 0.42,
+  "has_cost": true
+}
+```
+
+`has_token_data` and `has_cost` are required booleans. When `has_token_data` is true, token counts are required. When `has_cost` is true, `cost_usd` is required. A `404` response is treated as no usage data for that session.
 
 ### Agentic Mode
 
@@ -652,6 +723,17 @@ ignore_review_user_config = true   # Pass --ignore-user-config to Codex review j
 
 Set either to `false` to restore the prior behavior if you rely on Codex skill instructions or user-level Codex config during reviews.
 
+### Pi Classifier Options
+
+Pi can be used as the auto design-review classifier because roborev runs Pi with a JSON schema output extension. The default extension source is `npm:@nqbao/pi-json-schema@0.1.1`.
+
+Override the extension source under `[agent.pi]` if you vendor or mirror the extension:
+
+```toml
+[agent.pi]
+jsonschemaextension = "/opt/roborev/pi-json-schema/index.ts"
+```
+
 ## Hooks
 
 Run shell commands when reviews complete or fail. See the [Review Hooks guide](/guides/hooks) for full details.
@@ -680,7 +762,7 @@ Template variables: `{job_id}`, `{repo}`, `{repo_name}`, `{sha}`, `{agent}`, `{v
 
 ## Auto Design Review
 
-Off by default. When enabled, roborev decides per commit whether to dispatch a `--type design` review on top of the normal code review. The router uses cheap heuristics first (path globs, diff size, file count, commit-subject regexes) and falls back to a JSON-schema-constrained classifier for ambiguous cases. The post-commit, `roborev review`, range, and dirty paths all consult the router, as does the CI poller when `design` is not already in the configured review matrix. When the router decides not to run, a skipped row is recorded with a short reason and rendered dimmed in the TUI; PR synthesis includes a one-line `Auto-design-review skipped: <reason>` section.
+Off by default. When enabled, roborev decides per commit whether to dispatch a `--type design` review on top of the normal code review. The router uses cheap heuristics first (path globs, diff size, file count, commit-subject regexes) and falls back to a JSON-schema-constrained classifier for ambiguous cases. The post-commit, `roborev review`, range, and dirty paths all consult the router, as does the CI poller when `design` is not already in the configured panel or review matrix. When the router decides not to run, a skipped row is recorded with a short reason and rendered dimmed in the TUI; PR synthesis includes a one-line `Auto-design-review skipped: <reason>` section.
 
 By default, the TUI queue hides the auto-design-router's classifier jobs (`job_type = classify`) and skipped design rows (`status = skipped`, scoped to `source = auto_design`) so per-commit routing decisions do not crowd out review rows. Decisions are still recorded and counted on the daemon status endpoint. Press `s` in the TUI to toggle visibility for the current session, or set `show_classify_jobs = true` in `~/.roborev/config.toml` to make them visible globally; per-repo `.roborev.toml` can override with a nullable `show_classify_jobs` field (omit to inherit). When viewing a hidden classifier or skipped row, press `l` to see the classifier verdict and `skip_reason` rendered above the (typically empty) log.
 
@@ -767,14 +849,14 @@ When heuristics are inconclusive, the router enqueues a `classify` job that runs
 | `classify_backup_agent` | string | - | Fallback classifier agent on quota exhaustion or failure |
 | `classify_backup_model` | string | - | Fallback classifier model |
 
-Currently `claude-code` (via `--json-schema`) and `codex` (via `exec --output-schema`) implement the structured-output capability. Other agents are rejected at config-resolve time with a list of valid choices.
+Currently `claude-code` (via `--json-schema`) and `pi` (via the configured JSON schema extension) implement the structured-output capability. Other agents are rejected at config-resolve time with a list of valid choices.
 
 These keys live at the top level of the config file (not inside `[auto_design_review]`), since they describe the classifier agent the same way `review_agent` and `fix_agent` describe their workflows:
 
 ```toml
 # ~/.roborev/config.toml
-classify_agent = "codex"
-classify_model = "gpt-5.2-codex"
+classify_agent = "claude-code"
+classify_model = "claude-opus-4-8"
 classify_reasoning = "fast"
 
 [auto_design_review]
@@ -783,7 +865,7 @@ enabled = true
 
 ### CI integration
 
-When the CI poller picks up a PR, it runs the auto design-review router on the head SHA when `design` is not already in the configured review matrix (`ci.review_types`). If heuristic inputs (diff, changed files, commit message) fail to assemble, the commit degrades to the classifier instead of being silently skipped.
+When the CI poller picks up a PR, it runs the auto design-review router on the head SHA when `design` is not already in the configured panel or review matrix. If heuristic inputs (diff, changed files, commit message) fail to assemble, the commit degrades to the classifier instead of being silently skipped.
 
 The daemon `/api/status` endpoint exposes a `SkippedJobs` aggregate count, plus an `auto_design` subobject with five per-outcome counters (`triggered`, `skipped_heuristic`, `triggered_classifier`, `skipped_classifier`, `errored`) when the feature is enabled anywhere. The subobject is omitted from the JSON when the feature is disabled across all repos.
 
