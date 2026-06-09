@@ -5,6 +5,28 @@ description: Release history for roborev
 
 All notable changes to roborev, grouped by minor release.
 
+## 0.57.1
+<small>2026-06-08</small>
+
+**New features**
+
+- Ship Windows releases as both `.zip` and `.tar.gz` archives.
+- Add a daemon route for agentsview token backfill.
+
+**Improvements**
+
+- Improve TUI queue rendering performance.
+- Speed up TUI queue startup by reducing repeated display-name lookups.
+- Reduce git command overhead on Windows ARM systems.
+
+**Bug fixes**
+
+- Fix PowerShell 5.x install failures on Windows when handling redirects.
+- Fix TUI freezes when using multi-repo filters.
+- Allow agentsview usage without version-gating.
+
+---
+
 ## 0.57
 <small>2026-06-05</small>
 
