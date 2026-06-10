@@ -3,6 +3,9 @@ import starlight from '@astrojs/starlight';
 
 export default defineConfig({
   site: 'https://roborev.io',
+  // Must be explicit: with Astro 6 + Starlight 0.39, MDX pages lose GFM
+  // (tables, strikethrough, autolinks) unless gfm is set here.
+  markdown: { gfm: true },
   redirects: {
     '/integrations/postgres-sync/': '/advanced/postgres-sync/',
     '/agents/modes/': '/advanced/custom-tasks/',
