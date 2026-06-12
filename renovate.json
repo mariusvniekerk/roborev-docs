@@ -8,8 +8,7 @@
   "prCreation": "not-pending",
   "internalChecksFilter": "strict",
   "vulnerabilityAlerts": {
-    "minimumReleaseAge": null,
-    "prCreation": "immediate"
+    "enabled": false
   },
   "packageRules": [
     {
